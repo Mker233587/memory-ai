@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 记忆助理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }
+    .card { background: #1e293b; padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; }
+    h2 { text-align: center; margin-bottom: 20px; }
+    input { width: 100%; padding: 12px; margin-bottom: 12px; border: none; border-radius: 8px; background: #334155; color: #fff; font-size: 1rem; }
+    button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+    .link { text-align: center; margin-top: 12px; color: #94a3b8; }
+    .link a { color: #60a5fa; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🧠 记忆助理</h2>
+    <input type="text" id="username" placeholder="用户名" autocomplete="off">
+    <input type="password" id="password" placeholder="密码">
+    <button onclick="login()">登录</button>
+    <div class="link"><a href="javascript:register()">注册新账号</a></div>
+  </div>
+  <script>
+    // 将这里的URL改为你的Worker地址（或使用自定义域名）
+    const API_BASE = 'https://你的Worker地址.workers.dev';
+    async function login() {
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      if (!u || !p) return alert('请填写完整');
+      const res = await fetch(API_BASE + '/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', username: u, password: p })
+      });
+      const d = await res.json();
+      if (d.token) {
+        localStorage.setItem('token', d.token);
+        location.href = 'chat.html';
+      } else alert(d.error);
+    }
+    async function register() {
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      if (!u || !p) return alert('请填写完整');
+      const res = await fetch(API_BASE + '/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'register', username: u, password: p })
+      });
+      const d = await res.json();
+      if (d.token) {
+        localStorage.setItem('token', d.token);
+        location.href = 'chat.html';
+      } else alert(d.error);
+    }
+  </script>
+</body>
+</html>
