@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>记忆数据管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    .section { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .section h2 { margin-bottom: 12px; font-size: 1.2rem; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; }
+    .empty { color: #64748b; font-style: italic; }
+    button { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 10px; }
+    .logout { background: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>🧠 记忆数据管理</h1>
+  <button onclick="location.href='chat.html'">返回聊天</button>
+  <button class="logout" onclick="logout()">退出登录</button>
+  <div id="content">加载中...</div>
+
+  <script>
+    const API_BASE = 'https://memory-ai-assistant.lwy520.workers.dev';
+    const token = localStorage.getItem('token');
+    if (!token) location.href = 'login.html';
+
+    function logout() {
+      localStorage.clear();
+      location.href = 'login.html';
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(API_BASE + '/api/admin', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        render(data);
+      } catch(e) {
+        document.getElementById('content').innerHTML = '加载失败，请确保VPN开启且Worker正常';
+      }
+    }
+
+    function renderTable(title, rows, columns) {
+      if (!rows || rows.length === 0) {
+        return `<div class="section"><h2>${title} (0)</h2><div class="empty">暂无数据</div></div>`;
+      }
+      let html = `<div class="section"><h2>${title} (${rows.length})</h2><table><thead><tr>`;
+      columns.forEach(col => html += `<th>${col}</th>`);
+      html += `</tr></thead><tbody>`;
+      rows.forEach(row => {
+        html += '<tr>';
+        columns.forEach(col => html += `<td>${row[col] ?? ''}</td>`);
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function render(data) {
+      let html = '';
+      html += renderTable('👤 人物', data.persons, ['id','name','nickname','gender','birthday','notes']);
+      html += renderTable('🏷️ 人物属性', data.person_attributes, ['id','person_id','attr_name','attr_value','notes']);
+      html += renderTable('🔗 人物关系', data.person_relations, ['id','person_a_id','person_b_id','relation','reverse_relation','notes']);
+      html += renderTable('📅 事件', data.events, ['id','title','event_date','type','related_person_id','reminder','notes']);
+      html += renderTable('💡 偏好', data.preferences, ['id','category','attr_name','attr_value','notes']);
+      html += renderTable('📁 项目', data.projects, ['id','name','description','tech_stack','status']);
+      html += renderTable('💻 代码索引', data.code_index, ['id','project_id','file_path','function_name','brief','tags']);
+      html += renderTable('📚 知识库', data.knowledge, ['id','topic','content','source','tags']);
+      html += renderTable('✍️ 决策', data.decisions, ['id','title','reason','date','notes']);
+      html += renderTable('💰 资产', data.assets, ['id','name','type','detail','notes']);
+      document.getElementById('content').innerHTML = html;
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
