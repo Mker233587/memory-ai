@@ -13,15 +13,22 @@
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #334155; }
     th { color: #94a3b8; }
+    td { position: relative; }
+    td[contenteditable="true"]:hover { background: #334155; }
     .empty { color: #64748b; font-style: italic; }
     button { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 10px; }
-    .logout { background: #ef4444; }
+    button.danger { background: #ef4444; }
+    button.save-btn { background: #059669; margin-left: 8px; }
+    .action-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; }
   </style>
 </head>
 <body>
   <h1>🧠 记忆数据管理</h1>
-  <button onclick="location.href='chat.html'">返回聊天</button>
-  <button class="logout" onclick="logout()">退出登录</button>
+  <div class="action-bar">
+    <button onclick="location.href='chat.html'">返回聊天</button>
+    <button onclick="logout()">退出登录</button>
+    <button class="danger" onclick="clearAllData()">⚠️ 清空所有记忆</button>
+  </div>
   <div id="content">加载中...</div>
 
   <script>
@@ -29,9 +36,23 @@
     const token = localStorage.getItem('token');
     if (!token) location.href = 'login.html';
 
-    function logout() {
-      localStorage.clear();
-      location.href = 'login.html';
+    function logout() { localStorage.clear(); location.href = 'login.html'; }
+
+    async function clearAllData() {
+      if (!confirm('确定要清空你的所有记忆数据吗？此操作不可恢复！')) return;
+      try {
+        const res = await fetch(API_BASE + '/api/admin/clear', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('已清空');
+          loadData();
+        } else {
+          alert('清空失败：' + (data.error || '未知错误'));
+        }
+      } catch(e) { alert('网络错误'); }
     }
 
     async function loadData() {
@@ -46,16 +67,20 @@
       }
     }
 
-    function renderTable(title, rows, columns) {
+    function renderTable(title, rows, columns, tableName) {
       if (!rows || rows.length === 0) {
         return `<div class="section"><h2>${title} (0)</h2><div class="empty">暂无数据</div></div>`;
       }
       let html = `<div class="section"><h2>${title} (${rows.length})</h2><table><thead><tr>`;
       columns.forEach(col => html += `<th>${col}</th>`);
-      html += `</tr></thead><tbody>`;
+      html += `<th>操作</th></tr></thead><tbody>`;
       rows.forEach(row => {
         html += '<tr>';
-        columns.forEach(col => html += `<td>${row[col] ?? ''}</td>`);
+        columns.forEach(col => {
+          const editable = (col !== 'id' && col !== 'user_id') ? 'contenteditable="true"' : '';
+          html += `<td ${editable} data-col="${col}" data-id="${row.id}">${row[col] ?? ''}</td>`;
+        });
+        html += `<td><button class="save-btn" data-id="${row.id}" data-table="${tableName}">保存</button></td>`;
         html += '</tr>';
       });
       html += '</tbody></table></div>';
@@ -64,17 +89,51 @@
 
     function render(data) {
       let html = '';
-      html += renderTable('👤 人物', data.persons, ['id','name','nickname','gender','birthday','notes']);
-      html += renderTable('🏷️ 人物属性', data.person_attributes, ['id','person_id','attr_name','attr_value','notes']);
-      html += renderTable('🔗 人物关系', data.person_relations, ['id','person_a_id','person_b_id','relation','reverse_relation','notes']);
-      html += renderTable('📅 事件', data.events, ['id','title','event_date','type','related_person_id','reminder','notes']);
-      html += renderTable('💡 偏好', data.preferences, ['id','category','attr_name','attr_value','notes']);
-      html += renderTable('📁 项目', data.projects, ['id','name','description','tech_stack','status']);
-      html += renderTable('💻 代码索引', data.code_index, ['id','project_id','file_path','function_name','brief','tags']);
-      html += renderTable('📚 知识库', data.knowledge, ['id','topic','content','source','tags']);
-      html += renderTable('✍️ 决策', data.decisions, ['id','title','reason','date','notes']);
-      html += renderTable('💰 资产', data.assets, ['id','name','type','detail','notes']);
+      const tables = [
+        { name: 'persons', title: '👤 人物', cols: ['id','name','nickname','gender','birthday','notes','user_id'] },
+        { name: 'person_attributes', title: '🏷️ 人物属性', cols: ['id','person_id','attr_name','attr_value','notes','user_id'] },
+        { name: 'person_relations', title: '🔗 人物关系', cols: ['id','person_a_id','person_b_id','relation','reverse_relation','notes','user_id'] },
+        { name: 'events', title: '📅 事件', cols: ['id','title','event_date','type','related_person_id','reminder','notes','user_id'] },
+        { name: 'preferences', title: '💡 偏好', cols: ['id','category','attr_name','attr_value','notes','user_id'] },
+        { name: 'projects', title: '📁 项目', cols: ['id','name','description','tech_stack','status','notes','user_id'] },
+        { name: 'code_index', title: '💻 代码索引', cols: ['id','project_id','file_path','function_name','brief','tags','user_id'] },
+        { name: 'knowledge', title: '📚 知识库', cols: ['id','topic','content','source','tags','user_id'] },
+        { name: 'decisions', title: '✍️ 决策', cols: ['id','title','reason','date','notes','user_id'] },
+        { name: 'assets', title: '💰 资产', cols: ['id','name','type','detail','notes','user_id'] },
+        { name: 'ai_personality', title: '🧠 个性规则', cols: ['id','rule_type','rule_content','trigger_keywords','source','user_id'] }
+      ];
+      tables.forEach(t => {
+        html += renderTable(t.title, data[t.name], t.cols, t.name);
+      });
       document.getElementById('content').innerHTML = html;
+      document.querySelectorAll('.save-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const table = btn.dataset.table;
+          const row = btn.closest('tr');
+          const cells = row.querySelectorAll('td[contenteditable="true"]');
+          const data = {};
+          cells.forEach(cell => {
+            data[cell.dataset.col] = cell.innerText.trim();
+          });
+          try {
+            const res = await fetch(API_BASE + '/api/admin/update', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              },
+              body: JSON.stringify({ table, id, data })
+            });
+            const result = await res.json();
+            if (result.success) {
+              alert('更新成功');
+            } else {
+              alert('更新失败：' + (result.error || '未知错误'));
+            }
+          } catch(e) { alert('网络错误'); }
+        });
+      });
     }
 
     loadData();
