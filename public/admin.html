@@ -80,7 +80,10 @@
           const editable = (col !== 'id' && col !== 'user_id') ? 'contenteditable="true"' : '';
           html += `<td ${editable} data-col="${col}" data-id="${row.id}">${row[col] ?? ''}</td>`;
         });
-        html += `<td><button class="save-btn" data-id="${row.id}" data-table="${tableName}">保存</button></td>`;
+        html += `<td>
+  <button class="save-btn" data-id="${row.id}" data-table="${tableName}">保存</button>
+  <button class="delete-btn" data-id="${row.id}" data-table="${tableName}" style="background:#dc2626;margin-left:4px;">删除</button>
+</td>`;
         html += '</tr>';
       });
       html += '</tbody></table></div>';
