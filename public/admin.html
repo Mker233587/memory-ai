@@ -19,7 +19,8 @@
     button { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 10px; }
     button.danger { background: #ef4444; }
     button.save-btn { background: #059669; margin-left: 8px; }
-    .action-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; }
+    button.delete-btn { background: #dc2626; margin-left: 4px; }
+    .action-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -81,9 +82,9 @@
           html += `<td ${editable} data-col="${col}" data-id="${row.id}">${row[col] ?? ''}</td>`;
         });
         html += `<td>
-  <button class="save-btn" data-id="${row.id}" data-table="${tableName}">保存</button>
-  <button class="delete-btn" data-id="${row.id}" data-table="${tableName}" style="background:#dc2626;margin-left:4px;">删除</button>
-</td>`;
+          <button class="save-btn" data-id="${row.id}" data-table="${tableName}">保存</button>
+          <button class="delete-btn" data-id="${row.id}" data-table="${tableName}">删除</button>
+        </td>`;
         html += '</tr>';
       });
       html += '</tbody></table></div>';
@@ -109,15 +110,17 @@
         html += renderTable(t.title, data[t.name], t.cols, t.name);
       });
       document.getElementById('content').innerHTML = html;
+
+      // 绑定保存按钮
       document.querySelectorAll('.save-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
           const table = btn.dataset.table;
           const row = btn.closest('tr');
           const cells = row.querySelectorAll('td[contenteditable="true"]');
-          const data = {};
+          const updateData = {};
           cells.forEach(cell => {
-            data[cell.dataset.col] = cell.innerText.trim();
+            updateData[cell.dataset.col] = cell.innerText.trim();
           });
           try {
             const res = await fetch(API_BASE + '/api/admin/update', {
@@ -126,13 +129,39 @@
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + token
               },
-              body: JSON.stringify({ table, id, data })
+              body: JSON.stringify({ table, id, data: updateData })
             });
             const result = await res.json();
             if (result.success) {
               alert('更新成功');
             } else {
               alert('更新失败：' + (result.error || '未知错误'));
+            }
+          } catch(e) { alert('网络错误'); }
+        });
+      });
+
+      // 绑定删除按钮
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('确定要删除这条记录吗？此操作不可恢复。')) return;
+          const id = btn.dataset.id;
+          const table = btn.dataset.table;
+          try {
+            const res = await fetch(API_BASE + '/api/admin/delete', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              },
+              body: JSON.stringify({ table, id })
+            });
+            const result = await res.json();
+            if (result.success) {
+              alert('删除成功');
+              loadData(); // 刷新表格
+            } else {
+              alert('删除失败：' + (result.error || '未知错误'));
             }
           } catch(e) { alert('网络错误'); }
         });
